@@ -89,6 +89,7 @@ const buildQdrantPoints = (embeddedChunks = []) => {
         accessRoles: chunk.accessRoles,
         department: chunk.department,
         embeddingModel: chunk.embeddingModel,
+        status: "ready",
         createdAt: new Date().toISOString(),
       },
     };
@@ -143,6 +144,10 @@ const createPayloadIndexes = async () => {
       },
       {
         field_name: "documentId",
+        field_schema: "keyword",
+      },
+      {
+        field_name: "status",
         field_schema: "keyword",
       },
     ];
@@ -220,6 +225,13 @@ const searchSimilarChunks = async ({
         },
       });
     }
+
+    filterMust.push({
+      key: "status",
+      match: {
+        value: "ready",
+      },
+    });
 
     // For now, do not add department filter here
     // We will add department filter later after confirming data format

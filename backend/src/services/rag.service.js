@@ -55,30 +55,61 @@ const buildSources = (chunks = []) => {
   return Array.from(sourceMap.values());
 };
 
+
 /**
- * Build strict RAG prompt
+ * Format previous chat messages for LLM context
  */
-const buildRagPrompt = ({ question, context }) => {
+const buildChatHistoryContext = (messages = []) => {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return "No previous conversation history.";
+  }
+
+  return messages
+    .map((message) => {
+      if (message.role === "user") {
+        return `User: ${message.question}`;
+      }
+
+      if (message.role === "assistant") {
+        return `Assistant: ${message.answer}`;
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+};
+
+/**
+ * Build strict RAG prompt with previous chat history
+ */
+const buildRagPrompt = ({ question, context, chatHistory = [] }) => {
+  const historyContext = buildChatHistoryContext(chatHistory);
+
   return `
 You are AskNexus, a company knowledge assistant.
 
 Your job:
-Answer the user's question using ONLY the provided company document context.
+Answer the user's latest question using ONLY the provided company document context.
 
 Rules:
-1. Use only the provided context.
-2. Do not use outside knowledge.
-3. If the answer is not available in the context, say:
+1. Use only the provided company document context for factual answers.
+2. You may use previous conversation history only to understand follow-up questions.
+3. Do not use outside knowledge.
+4. If the answer is not available in the company document context, say:
    "I could not find this information in the uploaded company documents."
-4. Keep the answer clear and simple.
-5. If useful, mention the source document name.
-6. Do not create fake policies, fake numbers, fake dates, or fake sources.
-7. If the context is unclear, say that the document context is unclear.
+5. Keep the answer clear and simple.
+6. If useful, mention the source document name.
+7. Do not create fake policies, fake numbers, fake dates, or fake sources.
+8. If the context is unclear, say that the document context is unclear.
+
+Previous Conversation History:
+${historyContext}
 
 Company Document Context:
 ${context}
 
-User Question:
+Latest User Question:
 ${question}
 
 Final Answer:
@@ -113,13 +144,14 @@ const extractGeminiText = (response) => {
 /**
  * Generate final answer from Gemini
  */
-const generateAnswerWithGemini = async ({ question, chunks }) => {
+const generateAnswerWithGemini = async ({ question, chunks, chatHistory = [] }) => {
   try {
     const context = buildContextFromChunks(chunks);
 
     const prompt = buildRagPrompt({
       question,
       context,
+      chatHistory,
     });
 
     const response = await ai.models.generateContent({
@@ -148,6 +180,7 @@ const askRagQuestion = async ({
   userRole,
   department,
   topK = 5,
+  chatHistory = [],
 }) => {
   try {
     if (!question || typeof question !== "string") {
@@ -190,6 +223,7 @@ const askRagQuestion = async ({
     const answer = await generateAnswerWithGemini({
       question: cleanedQuestion,
       chunks: relevantChunks,
+      chatHistory,
     });
 
     // 5. Build source list
@@ -215,3 +249,4 @@ module.exports = {
   buildContextFromChunks,
   buildSources,
 };
+

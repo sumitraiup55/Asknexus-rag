@@ -11,6 +11,7 @@ const connectDB = require("./config/db");
 
 const chatRoutes = require("./routes/chat.routes");
 const authRoutes = require("./routes/auth.routes");
+const documentRoutes = require("./routes/document.routes");
 
 // temporary route
 const upload = require("./middlewares/upload.middleware");
@@ -68,6 +69,7 @@ app.get("/api/v1/health", (req, res) => {
 // Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/documents", documentRoutes);
 
 
 //temporary route
