@@ -186,7 +186,7 @@ const createPayloadIndexes = async () => {
 };
 
 /**
- * Search similar chunks from Qdrant
+ * Search similar chunks from Qdrant with role + department access control
  */
 const searchSimilarChunks = async ({
   queryEmbedding,
@@ -200,54 +200,82 @@ const searchSimilarChunks = async ({
       throw new Error("Query embedding is required");
     }
 
+    if (!organizationId) {
+      throw new Error("Organization ID is required for vector search");
+    }
+
     await ensureCollection();
 
-    const filterMust = [];
+    const normalizedRole = String(userRole || "").toLowerCase();
+    const normalizedDepartment = String(department || "general").toLowerCase();
 
-    // Organization filter
-    if (organizationId) {
-      filterMust.push({
+    const isAdmin =
+      normalizedRole === "admin" || normalizedRole === "super_admin";
+
+    /**
+     * Base filters:
+     * These apply to everyone.
+     * User must only search inside their own organization.
+     * Only ready documents should be used.
+     */
+    const filterMust = [
+      {
         key: "organizationId",
         match: {
           value: String(organizationId),
         },
-      });
-    }
+      },
+      {
+        key: "status",
+        match: {
+          value: "ready",
+        },
+      },
+    ];
 
-    // Role filter
-    // accessRoles is stored as array: ["admin", "employee"]
-    // Qdrant match.value can match inside array payload also
-    if (userRole) {
+    /**
+     * Access control for normal users:
+     * Employee/customer can only access documents where:
+     * - accessRoles contains their role
+     * - department is either their own department or "general"
+     *
+     * Admin/super_admin can access all documents in the organization.
+     */
+    if (!isAdmin) {
       filterMust.push({
         key: "accessRoles",
         match: {
-          value: String(userRole),
+          value: normalizedRole,
         },
       });
+
+      filterMust.push({
+        should: [
+          {
+            key: "department",
+            match: {
+              value: normalizedDepartment,
+            },
+          },
+          {
+            key: "department",
+            match: {
+              value: "general",
+            },
+          },
+        ],
+      });
     }
-
-    filterMust.push({
-      key: "status",
-      match: {
-        value: "ready",
-      },
-    });
-
-    // For now, do not add department filter here
-    // We will add department filter later after confirming data format
 
     const searchPayload = {
       vector: queryEmbedding,
       limit: Number(topK) || 5,
       with_payload: true,
       with_vector: false,
-    };
-
-    if (filterMust.length > 0) {
-      searchPayload.filter = {
+      filter: {
         must: filterMust,
-      };
-    }
+      },
+    };
 
     const searchResult = await qdrant.search(COLLECTION_NAME, searchPayload);
 
@@ -261,6 +289,7 @@ const searchSimilarChunks = async ({
       fileType: item.payload.fileType,
       department: item.payload.department,
       accessRoles: item.payload.accessRoles,
+      status: item.payload.status,
     }));
   } catch (error) {
     console.error("Qdrant Search Full Error:", error);

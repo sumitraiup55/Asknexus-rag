@@ -116,15 +116,15 @@ const askQuestion = async (req, res) => {
     const chatHistory = previousMessages.reverse();
 
     /**
-     * Ask RAG service
-     */
+    * Ask RAG service with secure organization, role, and department filters
+    */
     const ragResult = await askRagQuestion({
-      question,
-      organizationId: user.organizationId,
-      userRole: user.role,
-      department: user.department || "general",
-      topK: topK || 5,
-      chatHistory,
+     question,
+     organizationId: String(user.organizationId),
+     userRole: String(user.role || "").toLowerCase(),
+     department: String(user.department || "general").toLowerCase(),
+     topK: topK || 5,
+     chatHistory,
     });
 
     /**
@@ -332,11 +332,15 @@ const deleteChatSession = async (req, res) => {
 
 /**
  * Temporary test controller for fake organization data
- * Keep only if you still need test-org testing.
  */
 const askTestQuestion = async (req, res) => {
   try {
-    const { question, topK } = req.body;
+    const {
+      question,
+      topK,
+      userRole = "employee",
+      department = "general",
+    } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -348,8 +352,8 @@ const askTestQuestion = async (req, res) => {
     const result = await askRagQuestion({
       question,
       organizationId: "test-org",
-      userRole: "employee",
-      department: "general",
+      userRole: String(userRole).toLowerCase(),
+      department: String(department).toLowerCase(),
       topK: topK || 5,
       chatHistory: [],
     });
@@ -359,6 +363,8 @@ const askTestQuestion = async (req, res) => {
       message: "Test answer generated successfully",
       data: {
         question,
+        userRole,
+        department,
         answer: result.answer,
         sources: result.sources,
         retrievedChunks: result.retrievedChunks,

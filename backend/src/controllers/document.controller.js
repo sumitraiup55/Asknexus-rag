@@ -46,10 +46,11 @@ const uploadDocument = async (req, res) => {
     const user = req.user;
 
     const {
-      title,
-      department = "general",
-      accessRoles = ["admin", "employee"],
+       title,
+       department = "general",
+       accessRoles = ["admin", "employee"],
     } = req.body;
+    const normalizedDepartment = String(department || "general").toLowerCase();
 
     if (!file) {
       return res.status(400).json({
@@ -66,11 +67,11 @@ const uploadDocument = async (req, res) => {
     }
 
     const normalizedAccessRoles = Array.isArray(accessRoles)
-      ? accessRoles
-      : String(accessRoles)
-          .split(",")
-          .map((role) => role.trim())
-          .filter(Boolean);
+           ? accessRoles.map((role) => String(role).toLowerCase().trim()).filter(Boolean)
+           : String(accessRoles)
+             .split(",")
+             .map((role) => role.toLowerCase().trim())
+             .filter(Boolean);
 
     // 1. Parse uploaded file
     const parsedData = await parseFile(file);

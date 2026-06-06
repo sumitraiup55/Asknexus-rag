@@ -1,0 +1,32 @@
+ASKNEXUS CUSTOMER FAQ DOCUMENT
+Title: Customer FAQ
+Department: support
+Access Roles: admin, customer
+
+This document contains customer support and frequently asked questions for AskNexus customers.
+
+1. Support Hours
+AskNexus customer support is available from 9:00 AM to 9:00 PM, Monday to Saturday.
+Customers can raise support tickets from the customer dashboard.
+
+2. Refund Policy
+Customers can request a refund within 7 business days of purchase if the service has not been heavily used.
+Refund requests are reviewed by the support team before approval.
+
+3. Ticket Response Time
+Normal support tickets are answered within 24 hours.
+Urgent account access issues are prioritized and usually reviewed within 6 hours.
+
+4. Plan Upgrade
+Customers can upgrade their plan from the billing section of the dashboard.
+After payment confirmation, upgraded features are activated immediately.
+
+5. Account Help
+If a customer cannot log in, they should use the Forgot Password option or contact support@asknexus.com.
+
+6. Data Privacy
+Customer uploaded documents are only used to answer questions inside their organization workspace.
+AskNexus does not share customer documents with other organizations.
+
+Verification Keyword
+CUSTOMER_FAQ_SECRET_CODE: SUPPORT-FAQ-2026

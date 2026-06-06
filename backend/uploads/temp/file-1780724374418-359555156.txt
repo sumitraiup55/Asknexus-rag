@@ -1,0 +1,29 @@
+ASKNEXUS GENERAL COMPANY INFO DOCUMENT
+Title: General Company Info
+Department: general
+Access Roles: admin, employee, customer
+
+This document contains general company information that is safe for admins, employees, and customers.
+
+1. Company Overview
+AskNexus is a smart company knowledge assistant that helps organizations upload documents and ask questions using RAG.
+It supports document upload, chunking, embeddings, vector search, source citations, and chat history.
+
+2. Mission
+The mission of AskNexus is to make company knowledge easy to search, secure to access, and simple to use for every authorized user.
+
+3. Main Features
+AskNexus includes user authentication, admin document management, role-based document access, department-based filtering, Qdrant vector search, and Gemini-powered answers.
+
+4. Departments
+AskNexus uses departments such as hr, support, engineering, sales, and general.
+Documents in the general department can be accessed by all allowed roles when the organizationId matches.
+
+5. Security Principle
+Users should only receive answers from documents that match their organization, role, department access rules, and document status.
+
+6. General Contact
+For general company information, users can contact info@asknexus.com.
+
+Verification Keyword
+GENERAL_INFO_SECRET_CODE: GENERAL-INFO-2026
