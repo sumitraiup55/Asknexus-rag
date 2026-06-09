@@ -1,0 +1,19 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+
+import App from "./App";
+import { AuthProvider } from "./context/AuthContext";
+import { FeedbackProvider } from "./context/FeedbackContext";
+
+import "./styles/theme.css";
+import "./styles/index.css";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <FeedbackProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </FeedbackProvider>
+  </React.StrictMode>
+);
