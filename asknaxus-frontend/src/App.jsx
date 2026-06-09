@@ -21,7 +21,6 @@ import Documents from "./pages/Documents";
 import { NotFound, Unauthorized } from "./pages/ErrorPages";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
-import Register from "./pages/Register";
 import UploadDocument from "./pages/UploadDocument";
 
 import { useAuth } from "./context/AuthContext";
@@ -106,18 +105,23 @@ const LandingPage = () => {
           </h1>
 
           <p>
-            Upload company documents, ask questions, get AI-powered answers with
-            trusted source citations, and manage role-based document access.
+            Login with OTP to access your company knowledge assistant. Admin
+            access is assigned by company email, while employees can use AI chat
+            based on their allowed documents.
           </p>
 
           <div className="hero-actions">
-            <Link to="/register" className="btn btn-primary">
-              Get Started
+            <Link to="/login" className="btn btn-primary">
+              Login to AskNexus
             </Link>
+          </div>
 
-            <Link to="/login" className="btn btn-outline">
-              Login
-            </Link>
+          <div className="landing-note">
+            <ShieldCheck size={18} />
+            <span>
+              No public registration. Admin access is controlled securely from
+              backend configuration.
+            </span>
           </div>
         </div>
 
@@ -134,18 +138,18 @@ const LandingPage = () => {
 
             <div className="chat-preview">
               <div className="message user-message">
-                What is the leave policy?
+                What is the company leave policy?
               </div>
 
               <div className="message ai-message">
-                According to the HR Policy, employees can apply for leave based
-                on company rules and department approval.
+                AskNexus searches your uploaded documents and gives a clean
+                answer with source document names.
               </div>
             </div>
 
             <div className="source-box">
               <FileText size={18} />
-              Source: HR Policy · Chunk #2 · 87% match
+              Sources: HR Policy.pdf, Company Guide.txt
             </div>
           </div>
 
@@ -156,12 +160,12 @@ const LandingPage = () => {
 
           <div className="floating-card card-two">
             <MessageSquareText size={20} />
-            Chat History
+            OTP Login
           </div>
 
           <div className="floating-card card-three">
             <Building2 size={20} />
-            Organization Workspace
+            Company Workspace
           </div>
         </div>
       </section>
@@ -184,14 +188,7 @@ const App = () => {
           }
         />
 
-        <Route
-          path="/register"
-          element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
-          }
-        />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
 
         <Route
           path="/dashboard"

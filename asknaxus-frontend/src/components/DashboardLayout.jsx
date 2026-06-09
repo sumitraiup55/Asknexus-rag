@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell, Menu, Sparkles } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
+import AccessBadge from "./AccessBadge";
 import GlobalSearch from "./GlobalSearch";
 import Sidebar from "./Sidebar";
 
@@ -43,6 +44,8 @@ const DashboardLayout = ({ children, title, subtitle }) => {
 
           <div className="topbar-actions">
             <GlobalSearch />
+
+            <AccessBadge user={user} compact />
 
             <button className="icon-btn">
               <Bell size={20} />

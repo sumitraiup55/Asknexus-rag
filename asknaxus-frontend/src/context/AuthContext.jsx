@@ -1,6 +1,14 @@
+import {
+  getMe,
+  loginUser,
+  logoutUser,
+  registerUser,
+  sendLoginOtp,
+  verifyLoginOtp,
+} from "../api/auth.api";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { getMe, loginUser, logoutUser, registerUser } from "../api/auth.api";
+// import { getMe, loginUser, logoutUser, registerUser } from "../api/auth.api";
 
 const AuthContext = createContext(null);
 
@@ -24,29 +32,47 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = async () => {
     const token = localStorage.getItem("asknexus_token");
-
+ 
     if (!token) {
       setAuthLoading(false);
       return;
     }
 
-    try {
-      const response = await getMe();
-      const currentUser = response?.data?.user;
+     try {
+       const response = await getMe();
+       const currentUser = response?.data?.user;
 
-      if (currentUser) {
-        setUser(currentUser);
-        localStorage.setItem("asknexus_user", JSON.stringify(currentUser));
-      }
-    } catch (error) {
-      localStorage.removeItem("asknexus_token");
-      localStorage.removeItem("asknexus_user");
-      setUser(null);
-    } finally {
-      setAuthLoading(false);
-    }
+       if (currentUser) {
+         setUser(currentUser);
+         localStorage.setItem("asknexus_user", JSON.stringify(currentUser));
+       }
+     } catch (error) {
+       localStorage.removeItem("asknexus_token");
+       localStorage.removeItem("asknexus_user");
+       setUser(null);
+     } finally {
+       setAuthLoading(false);
+     }
+   };
+   const sendOtp = async (email) => {
+   return sendLoginOtp({ email });
   };
 
+  const verifyOtpLogin = async ({ email, otp }) => {
+   const response = await verifyLoginOtp({ email, otp });
+
+   const loggedInUser =
+     response?.data?.user ||
+     response?.user ||
+     JSON.parse(localStorage.getItem("asknexus_user"));
+
+   if (loggedInUser) {
+     setUser(loggedInUser);
+     localStorage.setItem("asknexus_user", JSON.stringify(loggedInUser));
+   }
+
+   return response;
+ };
   const login = async (payload) => {
   const response = await loginUser(payload);
 
@@ -95,6 +121,8 @@ export const AuthProvider = ({ children }) => {
     setUser,
     authLoading,
     isAuthenticated,
+    sendOtp,
+    verifyOtpLogin,
     login,
     register,
     logout,

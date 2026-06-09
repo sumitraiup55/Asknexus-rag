@@ -241,3 +241,22 @@
     margin-right: 0;
   }
 }
+
+.landing-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 13px 15px;
+  border-radius: 16px;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-light);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.landing-note svg {
+  color: var(--secondary);
+  flex-shrink: 0;
+}
