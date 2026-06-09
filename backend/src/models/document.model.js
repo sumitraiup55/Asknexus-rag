@@ -39,6 +39,45 @@ const documentSchema = new mongoose.Schema(
       required: true,
     },
 
+    originalFile: {
+      storageType: {
+        type: String,
+        enum: ["gridfs", "local", "none"],
+        default: "none",
+      },
+
+      gridFsFileId: {
+        type: mongoose.Schema.Types.ObjectId,
+        default: null,
+        index: true,
+      },
+
+      gridFsBucketName: {
+        type: String,
+        default: null,
+      },
+
+      gridFsFileName: {
+        type: String,
+        default: null,
+      },
+
+      gridFsContentType: {
+        type: String,
+        default: null,
+      },
+
+      gridFsLength: {
+        type: Number,
+        default: 0,
+      },
+
+      gridFsUploadDate: {
+        type: Date,
+        default: null,
+      },
+    },
+
     totalPages: {
       type: Number,
       default: 1,

@@ -12,6 +12,11 @@ const {
   deleteVectorsByDocumentId,
 } = require("../services/vector.service");
 
+const {
+  uploadFileToGridFS,
+  deleteFileFromGridFS,
+} = require("../services/gridfs.service");
+
 /**
  * Safely delete local uploaded file
  */
@@ -40,17 +45,21 @@ const deleteLocalFile = async (filePath) => {
  */
 const uploadDocument = async (req, res) => {
   let documentRecord = null;
+  let gridFsFile = null;
 
   try {
     const file = req.file;
     const user = req.user;
 
     const {
-       title,
-       department = "general",
-       accessRoles = ["admin", "employee"],
+      title,
+      department = "general",
+      accessRoles = ["admin", "employee"],
     } = req.body;
-    const normalizedDepartment = String(department || "general").toLowerCase();
+
+    const normalizedDepartment = String(department || "general")
+      .toLowerCase()
+      .trim();
 
     if (!file) {
       return res.status(400).json({
@@ -67,16 +76,31 @@ const uploadDocument = async (req, res) => {
     }
 
     const normalizedAccessRoles = Array.isArray(accessRoles)
-           ? accessRoles.map((role) => String(role).toLowerCase().trim()).filter(Boolean)
-           : String(accessRoles)
-             .split(",")
-             .map((role) => role.toLowerCase().trim())
-             .filter(Boolean);
+      ? accessRoles
+          .map((role) => String(role).toLowerCase().trim())
+          .filter(Boolean)
+      : String(accessRoles)
+          .split(",")
+          .map((role) => role.toLowerCase().trim())
+          .filter(Boolean);
 
-    // 1. Parse uploaded file
+    // 1. Store original uploaded file in MongoDB GridFS
+    gridFsFile = await uploadFileToGridFS({
+      file,
+      metadata: {
+        title: title || file.originalname,
+        department: normalizedDepartment,
+        uploadedBy: user._id,
+        organizationId: user.organizationId,
+        originalFileName: file.originalname,
+        accessRoles: normalizedAccessRoles,
+      },
+    });
+
+    // 2. Parse uploaded file
     const parsedData = await parseFile(file);
 
-    // 2. Create document record
+    // 3. Create document record
     documentRecord = await Document.create({
       title: title || parsedData.originalFileName,
       originalFileName: parsedData.originalFileName,
@@ -85,15 +109,26 @@ const uploadDocument = async (req, res) => {
       fileType: parsedData.fileType,
       mimeType: parsedData.mimeType,
       fileSize: parsedData.fileSize,
+
+      originalFile: {
+        storageType: "gridfs",
+        gridFsFileId: gridFsFile.fileId,
+        gridFsBucketName: gridFsFile.bucketName,
+        gridFsFileName: gridFsFile.filename,
+        gridFsContentType: gridFsFile.contentType,
+        gridFsLength: gridFsFile.length,
+        gridFsUploadDate: gridFsFile.uploadDate,
+      },
+
       totalPages: parsedData.totalPages,
       organizationId: user.organizationId,
       uploadedBy: user._id,
-      department,
+      department: normalizedDepartment,
       accessRoles: normalizedAccessRoles,
       status: "processing",
     });
 
-    // 3. Create chunks
+    // 4. Create chunks
     const chunks = createDocumentChunks({
       text: parsedData.text,
       documentId: documentRecord._id,
@@ -102,18 +137,18 @@ const uploadDocument = async (req, res) => {
       originalFileName: parsedData.originalFileName,
       fileType: parsedData.fileType,
       accessRoles: normalizedAccessRoles,
-      department,
+      department: normalizedDepartment,
       chunkSize: 500,
       chunkOverlap: 100,
     });
 
-    // 4. Generate embeddings
+    // 5. Generate embeddings
     const embeddedChunks = await generateEmbeddingsForChunks(chunks);
 
-    // 5. Store vectors in Qdrant
+    // 6. Store vectors in Qdrant
     const storedVectors = await upsertEmbeddedChunks(embeddedChunks);
 
-    // 6. Store chunk metadata in MongoDB
+    // 7. Store chunk metadata in MongoDB
     const mongoChunks = embeddedChunks.map((chunk, index) => ({
       documentId: documentRecord._id,
       organizationId: user.organizationId,
@@ -124,13 +159,13 @@ const uploadDocument = async (req, res) => {
       vectorId: storedVectors[index].vectorId,
       originalFileName: parsedData.originalFileName,
       fileType: parsedData.fileType,
-      department,
+      department: normalizedDepartment,
       accessRoles: normalizedAccessRoles,
     }));
 
     await Chunk.insertMany(mongoChunks);
 
-    // 7. Update document status
+    // 8. Update document status
     documentRecord.status = "ready";
     documentRecord.totalChunks = chunks.length;
     documentRecord.processingError = null;
@@ -138,11 +173,13 @@ const uploadDocument = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Document uploaded, chunked, embedded, and stored successfully",
+      message:
+        "Document uploaded, stored in GridFS, chunked, embedded, and stored successfully",
       data: {
         document: documentRecord,
         totalChunks: chunks.length,
         totalVectors: storedVectors.length,
+        gridFsFileId: gridFsFile.fileId,
       },
     });
   } catch (error) {
@@ -152,6 +189,16 @@ const uploadDocument = async (req, res) => {
       documentRecord.status = "failed";
       documentRecord.processingError = error.message;
       await documentRecord.save();
+    } else if (gridFsFile?.fileId) {
+      // If GridFS upload happened but document record was not created, clean it
+      try {
+        await deleteFileFromGridFS(gridFsFile.fileId);
+      } catch (gridFsDeleteError) {
+        console.error(
+          "GridFS cleanup failed after upload error:",
+          gridFsDeleteError.message
+        );
+      }
     }
 
     return res.status(500).json({
@@ -305,20 +352,34 @@ const deleteDocument = async (req, res) => {
       organizationId: user.organizationId,
     });
 
-    // 3. Delete local uploaded file
+    // 3. Delete original file from MongoDB GridFS
+    await deleteFileFromGridFS(document.originalFile?.gridFsFileId);
+
+    // 4. Delete local uploaded file
     await deleteLocalFile(document.filePath);
 
-    // 4. Soft mark document deleted
+    // 5. Soft mark document deleted
     document.status = "deleted";
     document.deletedAt = new Date();
     document.deletedBy = user._id;
     document.totalChunks = 0;
+
+    document.originalFile = {
+      storageType: "none",
+      gridFsFileId: null,
+      gridFsBucketName: null,
+      gridFsFileName: null,
+      gridFsContentType: null,
+      gridFsLength: 0,
+      gridFsUploadDate: null,
+    };
+
     await document.save();
 
     return res.status(200).json({
       success: true,
       message:
-        "Document deleted successfully from local storage, MongoDB chunks, and Qdrant vectors",
+        "Document deleted successfully from GridFS, local storage, MongoDB chunks, and Qdrant vectors",
       data: {
         documentId: document._id,
         title: document.title,
@@ -356,15 +417,22 @@ const hardDeleteDocument = async (req, res) => {
       });
     }
 
+    // 1. Delete vectors from Qdrant
     await deleteVectorsByDocumentId(document._id);
 
+    // 2. Delete chunks from MongoDB
     await Chunk.deleteMany({
       documentId: document._id,
       organizationId: user.organizationId,
     });
 
+    // 3. Delete original file from MongoDB GridFS
+    await deleteFileFromGridFS(document.originalFile?.gridFsFileId);
+
+    // 4. Delete local uploaded file
     await deleteLocalFile(document.filePath);
 
+    // 5. Delete document record
     await Document.deleteOne({
       _id: document._id,
       organizationId: user.organizationId,
@@ -373,7 +441,7 @@ const hardDeleteDocument = async (req, res) => {
     return res.status(200).json({
       success: true,
       message:
-        "Document permanently deleted from MongoDB, local storage, chunks, and Qdrant",
+        "Document permanently deleted from MongoDB, GridFS, local storage, chunks, and Qdrant",
       data: {
         documentId,
       },
