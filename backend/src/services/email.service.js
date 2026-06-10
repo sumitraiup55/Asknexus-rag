@@ -1,20 +1,38 @@
+const dns = require("dns");
 const nodemailer = require("nodemailer");
 
 const createTransporter = () => {
+  const smtpEmail = process.env.SMTP_EMAIL;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+
+  if (!smtpEmail || !smtpPassword) {
+    throw new Error("SMTP email credentials are missing");
+  }
+
   return nodemailer.createTransport({
-    service: "gmail",
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: String(process.env.SMTP_SECURE || "true") === "true",
+
     auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD,
+      user: smtpEmail,
+      pass: smtpPassword,
     },
+
+    // Force IPv4 because Render may fail with Gmail IPv6 address
+    family: 4,
+
+    lookup: (hostname, options, callback) => {
+      return dns.lookup(hostname, { family: 4 }, callback);
+    },
+
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 };
 
 const sendOtpEmail = async ({ email, otp }) => {
-  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
-    throw new Error("SMTP email credentials are missing");
-  }
-
   const transporter = createTransporter();
 
   const mailOptions = {
