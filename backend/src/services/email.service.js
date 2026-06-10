@@ -1,4 +1,4 @@
-const { Resend } = require("resend");
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 const createOtpEmailHtml = (otp) => {
   return `
@@ -23,28 +23,53 @@ const createOtpEmailHtml = (otp) => {
 };
 
 const sendOtpEmail = async ({ email, otp }) => {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is missing");
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const senderName = process.env.BREVO_SENDER_NAME || "AskNexus";
+
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY is missing");
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  if (!senderEmail) {
+    throw new Error("BREVO_SENDER_EMAIL is missing");
+  }
 
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "AskNexus <onboarding@resend.dev>";
-
-  const { data, error } = await resend.emails.send({
-    from: fromEmail,
-    to: [email],
-    subject: "Your AskNexus Login OTP",
-    html: createOtpEmailHtml(otp),
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "api-key": apiKey,
+    },
+    body: JSON.stringify({
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [
+        {
+          email,
+        },
+      ],
+      subject: "Your AskNexus Login OTP",
+      htmlContent: createOtpEmailHtml(otp),
+    }),
   });
 
-  if (error) {
-    console.error("Resend Email Error:", error);
-    throw new Error(error.message || "Failed to send OTP email");
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    console.error("Brevo Email Error:", result);
+
+    throw new Error(
+      result?.message ||
+        result?.error ||
+        "Failed to send OTP email using Brevo"
+    );
   }
 
-  return data;
+  return result;
 };
 
 module.exports = {
