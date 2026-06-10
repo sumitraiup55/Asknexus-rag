@@ -1,12 +1,24 @@
 import axios from "axios";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "http://localhost:8000/api/v1" : "");
+
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8000/api/v1",
-  withCredentials: true,
+  baseURL: API_BASE_URL,
+  withCredentials: false,
 });
 
 axiosInstance.interceptors.request.use(
   (config) => {
+    if (!API_BASE_URL) {
+      return Promise.reject(
+        new Error(
+          "VITE_API_BASE_URL is missing. Please add backend URL in Vercel environment variables."
+        )
+      );
+    }
+
     const token = localStorage.getItem("asknexus_token");
 
     if (token) {
